@@ -2,7 +2,9 @@ class AVL:
     def __init__(self, key):
         self.key = key
         self.left = self.right = self.parent = None
-        self.height = self.weight = 0
+        self.height = 1
+        self.weight = 0
+        self.count = 0
         self.pred = self.suc = None
 
     def get_child(self, side):
@@ -16,6 +18,7 @@ class AVL:
         if child != None:
             child.parent = self
         self.height = 1 + max(AVL.get_height(self.left), AVL.get_height(self.right))
+        self.weight = self.count + AVL.get_weight(self.left) + AVL.get_weight(self.right)
 
     def search(tree, key):
         if tree == None:
@@ -58,22 +61,8 @@ class AVL:
             return 0
         return AVL.get_height(tree.right) - AVL.get_height(tree.left)
 
-    def get_weight(tree):
-        if tree == None:
-            return 0
-        return tree.weight
-
     def rotate(self, side):
         child = self.get_child(not side)
-
-        w1 = AVL.get_weight(tree.get_child(side))
-        w2 = AVL.get_weight(child.get_child(side))
-        w3 = AVL.get_weight(child.get_child(not side))
-        w_child = child.weight - w2 - w3
-        w_tree = self.weight - w1 - child.weight
-        self.weight = w_tree + w1 + w2
-        child.weight = w_child + w3 + self.weight
-
         self.set_child(child.get_child(side), not side)
         child.set_child(self, side)
         return child
@@ -91,17 +80,16 @@ class AVL:
             return tree.rotate(False)
         return tree
 
-    def join(left, right, key):
+    def join(left, right, tree):
         balance = AVL.get_height(right) - AVL.get_height(left)
         if balance < -1:
-            child = AVL.join(left.right, right, key)
+            child = AVL.join(left.right, right, tree)
             left.set_child(child, True)
             return AVL.rebalance(left)
         if balance > 1:
-            child = AVL.join(left, right.left, key)
+            child = AVL.join(left, right.left, tree)
             right.set_child(child, False)
             return AVL.rebalance(right)
-        tree = AVL(key)
         tree.set_child(left, False)
         tree.set_child(right, True)
         return tree
@@ -111,10 +99,10 @@ class AVL:
             return None, None, False
         if key < tree.key:
             left, mid, found = AVL.split(tree.left, key)
-            return left, AVL.join(mid, tree.right, tree.key), found
+            return left, AVL.join(mid, tree.right, tree), found
         if key > tree.key:
             mid, right, found = AVL.split(tree.right, key)
-            return AVL.join(tree.left, mid, tree.key), right, found
+            return AVL.join(tree.left, mid, tree), right, found
         return tree.left, tree.right, tree.key
 
     def insert(tree, key):
@@ -122,10 +110,10 @@ class AVL:
             return AVL(key)
         if key < tree.key:
             left = AVL.insert(tree.left, key)
-            return AVL.join(left, tree.right, tree.key)
+            tree = AVL.join(left, tree.right, tree)
         if key > tree.key:
             right = AVL.insert(tree.right, key)
-            return AVL.join(tree.left, right, tree.key)
+            tree = AVL.join(tree.left, right, tree)
         return tree
 
     def union(t1, t2):
@@ -136,16 +124,34 @@ class AVL:
         t2_left, t2_right, found = AVL.split(t2, t1.key)
         left = AVL.union(t2_left, t1.left)
         right = AVL.union(t2_right, t1.right)
-        return AVL.join(left, right, t1.key)
+        return AVL.join(left, right, t1)
 
-    def update_weight(tree, key):
+    def update_count(tree, key):
         if tree == None:
             return
         if key < tree.key:
-            update_weight(tree.left, key)
+            AVL.update_count(tree.left, key)
         elif key > tree.key:
-            update_weight(tree.right, key)
+            AVL.update_count(tree.right, key)
+        else:
+            tree.count += 1
         tree.weight += 1
+
+    def get_weight(tree):
+        if tree == None:
+            return 0
+        return tree.weight
+
+    def acum(tree, key, side):
+        if tree == None:
+            return 0
+        if key < tree.key:
+            curr = tree.count + AVL.get_weight(tree.right) if side else 0
+            return curr + AVL.acum(tree.left, key, side)
+        if key > tree.key:
+            curr = tree.count + AVL.get_weight(tree.left) if not side else 0
+            return curr + AVL.acum(tree.right, key, side)
+        return tree.count + AVL.get_weight(tree.get_child(side))
 
 def counting_sort(arr, key, max_elem):
     ans = [0 for _ in arr]
@@ -200,33 +206,43 @@ def make_lcp(text, suffix, rank):
         lcp[rank[i]] = common
         common -= common > 0
     return lcp
+import subprocess
+def debug(tree, filename):
+    def helper(tree, names):
+        ans = ""
+        if tree == None:
+            return ans
+        names[tree] = len(names)
+        ans += f"{names[tree]} [label=\"{tree.key}, {tree.weight}\"]\n"
+        if tree.parent != None:
+            ans += f"{names[tree.parent]} -> {names[tree]}\n"
+        return ans + helper(tree.left, names) + helper(tree.right, names)
+    ans = "strict digraph tree {\n"
+    ans += helper(tree, {})
+    ans += "}"
+    process = ["dot", "-Tpng", f"-o{filename}.png"]
+    subprocess.run(process, text = True, input=ans)
 
 def make_isles(indices, lens, isles):
-    # # print("indices", sorted(indices))
-    # # print("lens", lens)
-    diffs = {}
+    # print("indices", indices)
+    # print("lens", lens)
+    # print("isles", isles)
+    diffs = None
     for i in range(1, len(indices)):
         key = indices[i] - indices[i - 1]
-        if key in diffs:
-            diffs[key] += 1
-        else:
-            diffs[key] = 1
-    # # print("diffs", diffs)
-    keys = sorted(diffs.keys(), reverse=True)
-    for i in range(1, len(keys)):
-        diffs[keys[i]] += diffs[keys[i - 1]]
-    # # print("acum diffs", diffs)
-    keys = sorted(diffs.keys())
-    k = 0
+        diffs = AVL.insert(diffs, key)
+        diffs.parent = None
+        AVL.update_count(diffs, key)
+        # debug(diffs, f"{indices}, {lens}, {i}")
     for l in lens:
-        while k < len(keys) and keys[k] <= l:
-            k += 1
-        if k < len(keys):
-            gaps = diffs[keys[k]] + 1
+        suc = AVL.adjacent(diffs, l, True)
+        if suc != None:
+            gaps = AVL.acum(diffs, suc.key, True) + 1
         else:
             gaps = 1
+        # print(l, gaps, suc.key if suc != None else None, isles.get(gaps, 0) + 1, indices, lens)
         isles[gaps] = isles.get(gaps, 0) + 1
-    # # print("isles", isles)
+    # print("isles", isles)
 
 def make_ans(suffix, lcp):
     stack = [(0, 0)]
