@@ -1,3 +1,151 @@
+class AVL:
+    def __init__(self, key):
+        self.key = key
+        self.left = self.right = self.parent = None
+        self.height = self.weight = 0
+        self.pred = self.suc = None
+
+    def get_child(self, side):
+        return self.right if side else self.left
+
+    def set_child(self, child, side):
+        if side:
+            self.right = child
+        else:
+            self.left = child
+        if child != None:
+            child.parent = self
+        self.height = 1 + max(AVL.get_height(self.left), AVL.get_height(self.right))
+
+    def search(tree, key):
+        if tree == None:
+            return None
+        if key < tree.key:
+            return AVL.search(tree.left, key)
+        if key > tree.key:
+            return AVL.search(tree.right, key)
+        return tree
+
+    def extreme(tree, side):
+        if tree == None:
+            return None
+        if tree.get_child(side) != None:
+            return AVL.extreme(tree.get_child(side), side)
+        return tree
+
+    def adjacent(tree, key, side):
+        if tree == None:
+            return None
+        if key < tree.key:
+            adj = AVL.adjacent(tree.left, key, side)
+            if adj == None and side:
+                return tree
+            return adj
+        if key > tree.key:
+            adj = AVL.adjacent(tree.right, key, side)
+            if adj == None and not side:
+                return tree
+            return adj
+        return AVL.adjacent(tree.get_child(side), key, side)
+
+    def get_height(tree):
+        if tree == None:
+            return 0
+        return tree.height
+
+    def get_balance(tree):
+        if tree == None:
+            return 0
+        return AVL.get_height(tree.right) - AVL.get_height(tree.left)
+
+    def get_weight(tree):
+        if tree == None:
+            return 0
+        return tree.weight
+
+    def rotate(self, side):
+        child = self.get_child(not side)
+
+        w1 = AVL.get_weight(tree.get_child(side))
+        w2 = AVL.get_weight(child.get_child(side))
+        w3 = AVL.get_weight(child.get_child(not side))
+        w_child = child.weight - w2 - w3
+        w_tree = self.weight - w1 - child.weight
+        self.weight = w_tree + w1 + w2
+        child.weight = w_child + w3 + self.weight
+
+        self.set_child(child.get_child(side), not side)
+        child.set_child(self, side)
+        return child
+
+    def rebalance(tree):
+        if AVL.get_balance(tree) < -1:
+            if AVL.get_balance(tree.left) > 0:
+                child = tree.left.rotate(False)
+                tree.set_child(child, False)
+            return tree.rotate(True)
+        if AVL.get_balance(tree) > 1:
+            if AVL.get_balance(tree.right) < 0:
+                child = tree.right.rotate(True)
+                tree.set_child(child, True)
+            return tree.rotate(False)
+        return tree
+
+    def join(left, right, key):
+        balance = AVL.get_height(right) - AVL.get_height(left)
+        if balance < -1:
+            child = AVL.join(left.right, right, key)
+            left.set_child(child, True)
+            return AVL.rebalance(left)
+        if balance > 1:
+            child = AVL.join(left, right.left, key)
+            right.set_child(child, False)
+            return AVL.rebalance(right)
+        tree = AVL(key)
+        tree.set_child(left, False)
+        tree.set_child(right, True)
+        return tree
+
+    def split(tree, key):
+        if tree == None:
+            return None, None, False
+        if key < tree.key:
+            left, mid, found = AVL.split(tree.left, key)
+            return left, AVL.join(mid, tree.right, tree.key), found
+        if key > tree.key:
+            mid, right, found = AVL.split(tree.right, key)
+            return AVL.join(tree.left, mid, tree.key), right, found
+        return tree.left, tree.right, tree.key
+
+    def insert(tree, key):
+        if tree == None:
+            return AVL(key)
+        if key < tree.key:
+            left = AVL.insert(tree.left, key)
+            return AVL.join(left, tree.right, tree.key)
+        if key > tree.key:
+            right = AVL.insert(tree.right, key)
+            return AVL.join(tree.left, right, tree.key)
+        return tree
+
+    def union(t1, t2):
+        if t1 == None:
+            return t2
+        if t2 == None:
+            return t1
+        t2_left, t2_right, found = AVL.split(t2, t1.key)
+        left = AVL.union(t2_left, t1.left)
+        right = AVL.union(t2_right, t1.right)
+        return AVL.join(left, right, t1.key)
+
+    def update_weight(tree, key):
+        if tree == None:
+            return
+        if key < tree.key:
+            update_weight(tree.left, key)
+        elif key > tree.key:
+            update_weight(tree.right, key)
+        tree.weight += 1
 
 def counting_sort(arr, key, max_elem):
     ans = [0 for _ in arr]
@@ -83,14 +231,14 @@ def make_isles(indices, lens, isles):
 def make_ans(suffix, lcp):
     stack = [(0, 0)]
     isles = {}
-    for i in range(1, len(lcp)):
+    i = 1
+    while i < len(lcp):
         # print(i)
         last = i
         while lcp[i] < stack[-1][1]:
             # print(stack)
             last, common = stack.pop()
-            first_index = last - 1
-            indices = suffix[first_index : i]
+            indices = suffix[last - 1 : i]
             lens = list(range(max(stack[-1][1] + 1, lcp[i] + 1), common + 1))
             make_isles(sorted(indices), lens, isles)
             # print(indices, isles)
@@ -99,13 +247,12 @@ def make_ans(suffix, lcp):
         lone = len(lcp) - (suffix[i - 1] + max(lcp[i], lcp[i - 1]))
         isles[1] = isles.get(1, 0) + lone
         # print(suffix[i - 1], isles)
-    i += 1
+        i += 1
     # # print(stack)
     while len(stack) > 1:
         # print(stack)
         last, common = stack.pop()
-        first_index = last - 1
-        indices = suffix[first_index : i]
+        indices = suffix[last - 1 : i]
         lens = list(range(stack[-1][1] + 1, common + 1))
         make_isles(sorted(indices), lens, isles)
         # print(indices, isles)
@@ -115,7 +262,7 @@ def make_ans(suffix, lcp):
     return isles
 
 text = input()
-n = int(input())
+# n = int(input())
 suffix, rank = make_suffix(text)
 lcp = make_lcp(text, suffix, rank)
 # print("i:", *range(len(text)))
@@ -123,5 +270,5 @@ lcp = make_lcp(text, suffix, rank)
 # print("s:", *suffix)
 # print("l:", *lcp)
 ans = make_ans(suffix, lcp)
-print(ans.get(n, 0))
-# print(sorted(ans.items()))
+# print(ans.get(n, 0))
+print(sorted(ans.items()))
