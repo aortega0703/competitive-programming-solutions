@@ -96,14 +96,28 @@ class AVL:
 
     def split(tree, key):
         if tree == None:
-            return None, None, False
+            return None, None, None
         if key < tree.key:
             left, mid, found = AVL.split(tree.left, key)
             return left, AVL.join(mid, tree.right, tree), found
         if key > tree.key:
             mid, right, found = AVL.split(tree.right, key)
             return AVL.join(tree.left, mid, tree), right, found
-        return tree.left, tree.right, tree.key
+        return tree.left, tree.right, tree
+
+    def split_last(tree):
+        if tree.right == None:
+            return tree.left, tree
+        right, last = AVL.split_last(tree.right)
+        return AVL.join(tree.left, right, tree), last
+
+    def join2(left, right):
+        if left == None:
+            return right
+        if right == None:
+            return left
+        left, last = AVL.split_last(left)
+        return AVL.join(left, right, last)
 
     def insert(tree, key):
         if tree == None:
@@ -116,6 +130,12 @@ class AVL:
             tree = AVL.join(tree.left, right, tree)
         return tree
 
+    def delete(tree, key):
+        if tree == None:
+            return None
+        left, right, item = AVL.split(tree, key)
+        return AVL.join2(left, right)
+
     def union(t1, t2):
         if t1 == None:
             return t2
@@ -126,16 +146,60 @@ class AVL:
         right = AVL.union(t2_right, t1.right)
         return AVL.join(left, right, t1)
 
-    def update_count(tree, key):
+    def union_indices(t1, t2, diffs):
+        if t1 == None:
+            return t2
+        if t2 == None:
+            return t1
+        t2_left, t2_right, found = AVL.split(t2, t1.key)
+        left = AVL.union(t2_left, t1.left)
+        right = AVL.union(t2_right, t1.right)
+        return AVL.join(left, right, t1)
+
+    def union_diffs(t1, t2):
+        if t1 == None:
+            return t2
+        if t2 == None:
+            return t1
+        t2_left, t2_right, found = AVL.split(t2, t1.key)
+        left = AVL.union(t2_left, t1.left)
+        right = AVL.union(t2_right, t1.right)
+        if found:
+            t1.count += found.count
+        return AVL.join(left, right, t1)
+
+    def join_indices(left, right, tree, diffs):
+        balance = AVL.get_height(right) - AVL.get_height(left)
+        if balance < -1:
+            child = AVL.join_indices(left.right, right, tree)
+            left.set_child(child, True)
+            return AVL.rebalance(left)
+        if balance > 1:
+            child = AVL.join_indices(left, right.left, tree)
+            right.set_child(child, False)
+            return AVL.rebalance(right)
+        pred = AVL.extreme(left, True)
+        succ = AVL.extreme(right, False)
+        if pred != None:
+            diffs = AVL.insert(diffs, tree.key - pred.key)
+            AVL.add_count(diffs, tree.key - pred.key, 1)
+        if succ != None:
+            diffs = AVL.insert(diffs, succ.key - tree.key)
+            AVL.add_count(diffs, succ.key - tree.key, 1)
+        tree.set_child(left, False)
+        tree.set_child(right, True)
+        return tree
+
+    def add_count(tree, key, amount):
         if tree == None:
             return
         if key < tree.key:
-            AVL.update_count(tree.left, key)
+            AVL.add_count(tree.left, key, amount)
         elif key > tree.key:
-            AVL.update_count(tree.right, key)
+            AVL.add_count(tree.right, key, amount)
         else:
-            tree.count += 1
-        tree.weight += 1
+            tree.count += amount
+        tree.weight += amount
 
     def get_weight(tree):
         if tree == None:
@@ -152,6 +216,11 @@ class AVL:
             curr = tree.count + AVL.get_weight(tree.left) if not side else 0
             return curr + AVL.acum(tree.right, key, side)
         return tree.count + AVL.get_weight(tree.get_child(side))
+
+    def inorder(tree):
+        if tree == None:
+            return []
+        return AVL.inorder(tree.left) + [tree.key] + AVL.inorder(tree.right)
 
 def counting_sort(arr, key, max_elem):
     ans = [0 for _ in arr]
@@ -223,62 +292,89 @@ def debug(tree, filename):
     process = ["dot", "-Tpng", f"-o{filename}.png"]
     subprocess.run(process, text = True, input=ans)
 
-def make_isles(indices, lens, isles):
-    # print("indices", indices)
-    # print("lens", lens)
-    # print("isles", isles)
-    diffs = None
-    for i in range(1, len(indices)):
-        key = indices[i] - indices[i - 1]
-        diffs = AVL.insert(diffs, key)
-        diffs.parent = None
-        AVL.update_count(diffs, key)
-        # debug(diffs, f"{indices}, {lens}, {i}")
+def make_isles(lens, diffs, isles):
     for l in lens:
         suc = AVL.adjacent(diffs, l, True)
         if suc != None:
             gaps = AVL.acum(diffs, suc.key, True) + 1
         else:
             gaps = 1
-        # print(l, gaps, suc.key if suc != None else None, isles.get(gaps, 0) + 1, indices, lens)
         isles[gaps] = isles.get(gaps, 0) + 1
-    # print("isles", isles)
 
+def add_index(curr_indices, new_indices, diffs, flag):
+    for j, i in enumerate(new_indices):
+        # print(i, AVL.inorder(curr_indices))
+        curr_indices = AVL.insert(curr_indices, i)
+        pred = curr_indices.adjacent(i, False)
+        suc = curr_indices.adjacent(i, True)
+        # print(pred.key if pred != None else None, suc.key if suc != None else None)
+        if pred != None and suc != None:
+            old_diff = suc.key - pred.key
+            diffs.add_count(old_diff, -1)
+            if AVL.search(diffs, old_diff) == 0:
+                diffs = diffs.delete(old_diff)
+        if suc != None:
+            new_diff = suc.key - i
+            diffs = AVL.insert(diffs, new_diff)
+            diffs.add_count(new_diff, 1)
+        if pred != None:
+            new_diff = i - pred.key
+            diffs = AVL.insert(diffs, new_diff)
+            diffs.add_count(new_diff, 1)
+        if flag >= 0:
+            curr_indices.parent = None
+            debug(curr_indices, f"{flag}-{j}-i-{i}-{new_indices}")
+            if diffs != None:
+                diffs.parent = None
+                debug(diffs, f"{flag}-{j}-j-{i}-{new_indices}")
+    return curr_indices, diffs
+
+import math
 def make_ans(suffix, lcp):
-    stack = [(0, 0)]
+    stack = [(0, 0, None, None)]
     isles = {}
     i = 1
     while i < len(lcp):
-        # print(i)
         last = i
+        temp = last
+        indices = None
+        diffs = None
+        count = -math.inf
+
         while lcp[i] < stack[-1][1]:
-            # print(stack)
-            last, common = stack.pop()
-            indices = suffix[last - 1 : i]
-            lens = list(range(max(stack[-1][1] + 1, lcp[i] + 1), common + 1))
-            make_isles(sorted(indices), lens, isles)
-            # print(indices, isles)
+            last, common, indices, diffs = stack.pop()
+            indices, diffs = add_index(indices, suffix[last - 1 : temp], diffs, count)
+            if count >= 0:
+                print(suffix[last - 1 : i])
+                print(suffix[last - 1 : temp])
+            # debug(indices, f"{i}-{count}-0-{suffix[curr - 1 : last]}-{suffix[curr - 1 : i]}")
+            # debug(diffs, f"{i}-{count}-1-{suffix[curr - 1 : last]}-{suffix[curr - 1 : i]}")
+            count += 1
+            lens = range(max(stack[-1][1] + 1, lcp[i] + 1), common + 1)
+            make_isles(lens, diffs, isles)
+            temp = last - 1
         if lcp[i] > stack[-1][1]:
-            stack.append((last, lcp[i]))
+            stack.append((last, lcp[i], indices, diffs))
         lone = len(lcp) - (suffix[i - 1] + max(lcp[i], lcp[i - 1]))
         isles[1] = isles.get(1, 0) + lone
-        # print(suffix[i - 1], isles)
+        # if 5 in isles:
+        #     print(i)
         i += 1
-    # # print(stack)
+    indices = None
+    diffs = None
+    temp = i
     while len(stack) > 1:
-        # print(stack)
         last, common = stack.pop()
-        indices = suffix[last - 1 : i]
-        lens = list(range(stack[-1][1] + 1, common + 1))
-        make_isles(sorted(indices), lens, isles)
-        # print(indices, isles)
+        indices, diffs = add_index(indices, suffix[last - 1 : temp], diffs, -1)
+        lens = range(stack[-1][1] + 1, common + 1)
+        make_isles(lens, diffs, isles)
+        temp = last - 1
     lone = len(lcp) - (suffix[i - 1] + lcp[i - 1])
     isles[1] = isles.get(1, 0) + lone
-    # print(suffix[i - 1], isles)
     return isles
 
 text = input()
-# n = int(input())
+n = int(input())
 suffix, rank = make_suffix(text)
 lcp = make_lcp(text, suffix, rank)
 # print("i:", *range(len(text)))
@@ -286,5 +382,5 @@ lcp = make_lcp(text, suffix, rank)
 # print("s:", *suffix)
 # print("l:", *lcp)
 ans = make_ans(suffix, lcp)
-# print(ans.get(n, 0))
-print(sorted(ans.items()))
+print(ans.get(n, 0))
+# print(sorted(ans.items()))
