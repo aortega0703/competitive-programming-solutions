@@ -1,4 +1,5 @@
-# https://www.hackerrank.com/contests/projecteuler/challenges/euler011/
+#!/bin/python3
+
 def product(l):
     ans = 1
     for i in l:
@@ -34,8 +35,8 @@ def transpose(l):
 
 grid = []
 for grid_i in range(20):
-	grid_t = [int(grid_temp) for grid_temp in input().strip().split(' ')]
-	grid.append(grid_t)
+    grid_t = [int(grid_temp) for grid_temp in input().strip().split(' ')]
+    grid.append(grid_t)
 
 ans = 0
 
@@ -60,10 +61,8 @@ for i in range(len(grid)):
         grid2[j][i] = grid[i][j-i]
 for i in range(len(grid2)):
     h = split(grid2[i], 0)
-    print(h)
     h = max(map(lambda x: max_prod(x, 4), h))
     ans = max(ans, h)
-    print(h)
 
 # columns
 grid = transpose(grid)
