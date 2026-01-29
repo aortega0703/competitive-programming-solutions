@@ -1,6 +1,5 @@
 # https://www.hackerrank.com/contests/projecteuler/challenges/euler018/
 def maxsum(i,l):
-	print(i,l)
 	if l >= n:
 		return list[i]
 	else:

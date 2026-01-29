@@ -1,4 +1,7 @@
 # https://www.hackerrank.com/contests/projecteuler/challenges/euler025/
+import sys
+sys.set_int_max_str_digits(5000)
+
 def fill(N):
     i = 2
     fib = [0, 1]
