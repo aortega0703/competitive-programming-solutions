@@ -1,53 +1,71 @@
 import math
 
+# The problem asks to find a and b such that
+# 10^k * a + b = (a + b)^2 < 10^16
+# we can simply check for m = a + b < 10*8 if m^2 can be split in such a way.
+#
+# It's not necessary to check all splits of n^2, splitting down the middle (
+# or the middle-adjacent for odd lengths) sufices:
+# For m^2 with even length 2L, m has length L so both a and b have to have
+# length L too (moving the split would result in either a > m or b > m).
+# For m^2 with odd length 2L + 1, m has length L + 1 so we have to check the
+# split on L and on L + 1. This means 
+#
+# We only need to check for m = 9q or m = 9q + 1:
+# With some modular arithmetic on the statement
+# 10^k * a + b = (a + b)^2
+# a + b = (a + b)^2 (mod 9)
+# which is only true for a + b = 0 or a + b = 1 (mod 9)
+
 def count_digits(n):
-    if n == 0:
-        return 1
     return int(math.log10(n)) + 1
+
+def split(root, square, square_digits):
+    root_digits = (square_digits + 1) // 2
+
+    a_shift = 10**root_digits
+    a, b = divmod(square, a_shift)
+    if root == a + b and b >= a_shift // 10:
+        return (a, b)
+
+    if square_digits % 2 == 0:
+        return None
+
+    a_shift //= 10
+    a, b = divmod(square, a_shift)
+    if root == a + b and b >= a_shift // 10:
+        return (a, b)
+    return None
 
 def main():
     max_digits = int(input())
 
     ans = 0
 
-    # 4^2 = 16 is the smallest "splitable" square (>= 2 digits)
-    root = 4 
-    n = root * root
-    square_digits = count_digits(n)
-    root_digits = count_digits(root)
-    root_digit_bound = 10**root_digits
-
-    square_digit_bound = 10 * math.sqrt(10)
+    root = 9 
+    square = root * root
+    square_digits = count_digits(square)
     while square_digits <= max_digits:
-        a_digits = square_digits - root_digits
-        a_shift = root_digit_bound
-        # stop once a surpasses root's digit count
-        while a_digits <= root_digits:
-            a, b = divmod(n, a_shift)
+        # (a + b) % 9 = 0
+        m = split(root, square, square_digits)
+        if m != None:
+            print(f"{square} = {root}^2 = ({m[0]} + {m[1]})^2")
+            ans += square
 
-            a_digits += 1
-            a_shift //= 10
-            # numbers with leading 0s aren't valid for concatenation
-            if b < a_shift:
-                continue
-
-            if root == a + b:
-                # n^2 is a 2025-number
-                print(f"{n} = {root}^2 = ({a} + {b})^2")
-                ans += n
-                break
-
+        # (a + b) % 9 = 1
         root += 1
-        n = root * root
-        if root >= root_digit_bound:
-            root_digits += 1
-            root_digit_bound *= 10
-            print(f"{square_digits} digits total: {ans}")
-            square_digits += 1
-        if root > int(square_digit_bound):
-            print(f"{square_digits} digits total: {ans}")
-            square_digits += 1
-            square_digit_bound *= 10
+        square = root * root
+        square_digits = count_digits(square)
+
+        m = split(root, square, square_digits)
+        if m != None:
+            print(f"{square} = {root}^2 = ({m[0]} + {m[1]})^2")
+            ans += square
+
+        # (a + b) % 9 = 0 again
+        root += 8
+        square = root * root
+        square_digits = count_digits(square)
     print()
     print(ans)
         
