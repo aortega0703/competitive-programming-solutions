@@ -27,14 +27,18 @@ def split(root, square, square_digits):
     a, b = divmod(square, a_shift)
     if root == a + b and b >= a_shift // 10:
         return (a, b)
-
-    if square_digits % 2 == 0:
-        return None
-
-    a_shift //= 10
-    a, b = divmod(square, a_shift)
-    if root == a + b and b >= a_shift // 10:
-        return (a, b)
+    # Apparently when ||m^2|| = 2L + 1 we only have to check one split, being
+    # ||a|| = L and ||b|| = L + 1.
+    # I think this is because if 'a' were the greater one then
+    # a = c_0.c_1 c_2... x10^L
+    # b =   0.d_1 d_1... x10^L
+    # and
+    # a + b =       d_0.e_1 e_2... x10^L
+    # or    = (c_0 + 1).e_1 e_2... x 10^L
+    # m   = (d_0 + 0.e_1 e_2...) x 10^L
+    # m^2 = (d_0^2 + 2 d_0 * 0.e_1 e_2... + (0.e_1 e_2...)^2) x 10^(2L)
+    # as (a + b)^2 and a have to start with the same digits, squaring (a + b)
+    # ruins those digits.
     return None
 
 def main():
