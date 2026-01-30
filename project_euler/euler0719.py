@@ -30,7 +30,7 @@ def main():
         root_digits = (square_digits + 1) // 2
         m = split(square, square_digits, root, root_digits, [])
         if m != None:
-            print(f"{square} = {root}^2 = ({" + ".join(map(str,m))})^2")
+            print(f"{square} = {root}^2 = ({' + '.join(map(str,m))})^2")
             ans += square
 
         # (a + b) % 9 = 1
@@ -40,7 +40,7 @@ def main():
         root_digits = (square_digits + 1) // 2
         m = split(square, square_digits, root, root_digits, [])
         if m != None:
-            print(f"{square} = {root}^2 = ({" + ".join(map(str,m))})^2")
+            print(f"{square} = {root}^2 = ({' + '.join(map(str,m))})^2")
             ans += square
 
         # (a + b) % 9 = 0 again
