@@ -1,6 +1,8 @@
 def is_special(A):
     if len(A) == 1:
         return True
+    if len(A) > 25:
+        return False
     A = sorted(A)
     # Compare the sum of the smallest k+1 and biggest k elements.
     # This ensures condition 2: |A| > |B| => S(A) > S(B)
@@ -20,7 +22,13 @@ def is_special(A):
     # operations (still O(2^n) tho) by only considering the sums of subsets
     # of length <= n/2 (because condition 2 guarantees there is no smaller
     # set with the same sum, and there are no disjoint sets with equal or
-    # more elements)
+    # more elements).
+    # In reality as inputs are capped at 10^6 sums range from n to n*10^6,
+    # but there are 2^n subsets, so this will always fail for
+    # 2^n > n 10^6
+    # n > log2(n) + log2(10^6)
+    # n - log2(n) > 20
+    # n ~ 25
     for new_elem in A:
         for elem_sum in memo:
             new_sum = elem_sum + new_elem
